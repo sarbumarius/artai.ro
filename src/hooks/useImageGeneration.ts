@@ -3,9 +3,21 @@ import { geminiService, GenerationRequest, EditRequest } from '../services/gemin
 import { useAppStore } from '../store/useAppStore';
 import { generateId } from '../utils/imageUtils';
 import { Generation, Edit, Asset } from '../types';
+import ArtaiService from '../services/ArtaiService';
 
 export const useImageGeneration = () => {
   const { addGeneration, setIsGenerating, setCanvasImage, setCurrentProject, currentProject } = useAppStore();
+
+  // Helper to convert base64 PNG to File
+  const base64ToFile = (base64: string, filename = 'generated.png', mime = 'image/png'): File => {
+    const byteString = atob(base64);
+    const ab = new ArrayBuffer(byteString.length);
+    const ia = new Uint8Array(ab);
+    for (let i = 0; i < byteString.length; i++) {
+      ia[i] = byteString.charCodeAt(i);
+    }
+    return new File([ab], filename, { type: mime });
+  };
 
   const generateMutation = useMutation({
     mutationFn: async (request: GenerationRequest) => {
@@ -15,7 +27,7 @@ export const useImageGeneration = () => {
     onMutate: () => {
       setIsGenerating(true);
     },
-    onSuccess: (images, request) => {
+    onSuccess: async (images, request) => {
       if (images.length > 0) {
         const outputAssets: Asset[] = images.map((base64, index) => ({
           id: generateId(),
@@ -58,7 +70,18 @@ export const useImageGeneration = () => {
         };
 
         addGeneration(generation);
-        setCanvasImage(outputAssets[0].url);
+
+        // Upload the first generated image to backend as an Image (status: generated)
+        try {
+          const firstBase64 = images[0];
+          const file = base64ToFile(firstBase64, 'generated.png', 'image/png');
+          const res = await ArtaiService.createImage({ file, description: request.prompt || '', status: 'generated' });
+          const serverUrl = (res as any)?.url;
+          setCanvasImage(serverUrl || outputAssets[0].url);
+        } catch (e) {
+          console.warn('Failed to save generated image to backend, using local data URL:', e);
+          setCanvasImage(outputAssets[0].url);
+        }
         
         // Create project if none exists
         if (!currentProject) {

@@ -20,7 +20,8 @@ export const ImageCanvas: React.FC = () => {
     selectedTool,
     isGenerating,
     brushSize,
-    setBrushSize
+    setBrushSize,
+    downloadFilename,
   } = useAppStore();
 
   const stageRef = useRef<any>(null);
@@ -159,16 +160,45 @@ export const ImageCanvas: React.FC = () => {
     }
   };
 
-  const handleDownload = () => {
-    if (canvasImage) {
+  const handleDownload = async () => {
+    if (!canvasImage) return;
+
+    const makeSafeName = (name: string) => {
+      let base = (name || 'artai-image').trim();
+      base = base.replace(/[^a-z0-9-_]+/gi, '-').replace(/-+/g, '-').replace(/^-|-$|\.+$/g, '');
+      if (!base) base = 'artai-image';
+      if (!base.toLowerCase().endsWith('.png')) base += '.png';
+      return base;
+    };
+
+    const filename = makeSafeName(downloadFilename);
+
+    try {
       if (canvasImage.startsWith('data:')) {
         const link = document.createElement('a');
         link.href = canvasImage;
-        link.download = `nano-banana-${Date.now()}.png`;
+        link.download = filename;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
+        return;
       }
+
+      // Fetch remote image and download as blob
+      const res = await fetch(canvasImage, { mode: 'cors' });
+      if (!res.ok) throw new Error('Failed to fetch image');
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      // Fallback: open in new tab (user can save manually)
+      window.open(canvasImage, '_blank');
     }
   };
 
@@ -348,17 +378,7 @@ export const ImageCanvas: React.FC = () => {
           </div>
           
           <div className="flex items-center space-x-2">
-            <span className="text-xs text-gray-500">
-              © 2025 Mark Fulton - 
-              <a
-                href="https://www.reinventing.ai/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-yellow-400 hover:text-yellow-300 transition-colors ml-1"
-              >
-                Reinventing.AI Solutions
-              </a>
-            </span>
+
             <span className="text-gray-600 hidden md:inline">•</span>
             <span className="text-yellow-400 hidden md:inline">⚡</span>
             <span className="hidden md:inline">Powered by Gemini 2.5 Flash Image</span>

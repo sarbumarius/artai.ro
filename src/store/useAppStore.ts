@@ -37,6 +37,9 @@ interface AppState {
   // UI state
   selectedTool: 'generate' | 'edit' | 'mask';
   
+  // Download filename
+  downloadFilename: string;
+  
   // Actions
   setCurrentProject: (project: Project | null) => void;
   setCanvasImage: (url: string | null) => void;
@@ -70,6 +73,7 @@ interface AppState {
   setShowPromptPanel: (show: boolean) => void;
   
   setSelectedTool: (tool: 'generate' | 'edit' | 'mask') => void;
+  setDownloadFilename: (name: string) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -100,6 +104,8 @@ export const useAppStore = create<AppState>()(
       showPromptPanel: true,
       
       selectedTool: 'generate',
+      
+      downloadFilename: 'artai-image',
       
       // Actions
       setCurrentProject: (project) => set({ currentProject: project }),
@@ -158,6 +164,7 @@ export const useAppStore = create<AppState>()(
       setShowPromptPanel: (show) => set({ showPromptPanel: show }),
       
       setSelectedTool: (tool) => set({ selectedTool: tool }),
+      setDownloadFilename: (name) => set({ downloadFilename: name }),
     }),
     { name: 'nano-banana-store' }
   )

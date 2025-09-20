@@ -7,6 +7,7 @@ import { Upload, Wand2, Edit3, MousePointer, HelpCircle, Menu, ChevronDown, Chev
 import { blobToBase64 } from '../utils/imageUtils';
 import { PromptHints } from './PromptHints';
 import { cn } from '../utils/cn';
+import ArtaiService from '../services/ArtaiService';
 
 export const PromptComposer: React.FC = () => {
   const {
@@ -64,28 +65,32 @@ export const PromptComposer: React.FC = () => {
     const file = event.target.files?.[0];
     if (file && file.type.startsWith('image/')) {
       try {
+        // 1) Keep existing local preview behavior (data URL)
         const base64 = await blobToBase64(file);
         const dataUrl = `data:${file.type};base64,${base64}`;
         
         if (selectedTool === 'generate') {
-          // Add to reference images (max 2)
           if (uploadedImages.length < 2) {
             addUploadedImage(dataUrl);
           }
         } else if (selectedTool === 'edit') {
-          // For edit mode, add to separate edit reference images (max 2)
           if (editReferenceImages.length < 2) {
             addEditReferenceImage(dataUrl);
           }
-          // Set as canvas image if none exists
           if (!canvasImage) {
             setCanvasImage(dataUrl);
           }
         } else if (selectedTool === 'mask') {
-          // For mask mode, set as canvas image immediately
           clearUploadedImages();
           addUploadedImage(dataUrl);
           setCanvasImage(dataUrl);
+        }
+
+        // 2) Send to backend as Reference Image (requirement)
+        try {
+          await ArtaiService.createReferenceImage({ file, description: selectedTool });
+        } catch (apiErr) {
+          console.warn('Failed to upload reference image to backend:', apiErr);
         }
       } catch (error) {
         console.error('Failed to upload image:', error);
